@@ -22,7 +22,7 @@ struct FltObject {
     gate_arrival_time: Option<String>,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 struct Config {
     driver: String,
     headless: bool,
@@ -93,7 +93,18 @@ fn load_config() -> Result<Config, config::ConfigError> {
 
 #[tokio::main]
 async fn main() {
-    let config = Arc::new(load_config().unwrap_or_default());
+    let config = Arc::new(match load_config() {
+        Ok(c) => {
+            println!("Successfully loaded config file: \n{:?}", c);
+            c
+        },
+        Err(e) => {
+            println!("Unable to load config file... Loading default\n{}", e);
+            Config::default()
+        }
+    });
+
+    println!("Loaded config: {:?}", config);
 
     pretty_env_logger::init();
 
@@ -176,6 +187,7 @@ async fn search_flt_num(flt_num: Option<&str>, config: &Config) -> Result<FltObj
         "chromium" => {
             json!({
                 "goog:chromeOptions": {
+                    "binary": "/usr/bin/chromium",
                     "args": [
                         "--headless=new",
                         "--no-sandbox",
