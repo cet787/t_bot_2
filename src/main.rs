@@ -4,13 +4,12 @@ use teloxide::prelude::*;
 use reqwest;
 use serde::Deserialize;
 use fantoccini::{ClientBuilder, Locator};
-use tokio::time;
 use serde_json::json;
 use config::{Config as ConfigLoader, File};
 
 #[derive(Deserialize, Debug)]
 struct METARObject {
-    rawOb: String,
+    raw_ob: String,
 }
 
 #[derive(Debug, Default)]
@@ -25,16 +24,16 @@ struct FltObject {
 #[derive(Deserialize, Clone, Debug)]
 struct Config {
     driver: String,
-    headless: bool,
-    webdriver_url: String,
+    _headless: bool,
+    _webdriver_url: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             driver: "geckodriver".to_string(),
-            headless: false,
-            webdriver_url: "http://localhost:4444".to_string(),
+            _headless: false,
+            _webdriver_url: "http://localhost:4444".to_string(),
         }
     }
 }
@@ -126,14 +125,14 @@ async fn main() {
                     "/metar" => {
                         if let Ok(metar_response) = fetch_metar(value).await {
                             if let Some(metar) = metar_response.first() {
-                                bot.send_message(msg.chat.id, &metar.rawOb).await?;
+                                bot.send_message(msg.chat.id, &metar.raw_ob).await?;
                             }
                         } else {
                             bot.send_message(msg.chat.id, format!("Could not retrieve METAR")).await?;
                         }
                     }
                     "/search" => {
-                        let output = search_airport().await;
+                        let _output = search_airport(value, &config).await;
                     }
                     "/flt" => {
                         if let Ok(flt_num_response) = search_flt_num(value, config.as_ref()).await {
@@ -246,33 +245,53 @@ async fn search_flt_num(flt_num: Option<&str>, config: &Config) -> Result<FltObj
 } 
 
 
-async fn search_airport() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn search_airport(airport_id: Option<&str>, config: &Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
-    let caps = json!({
-        "moz:firefoxOptions": {
-            "args":["-headless"]
+    let caps = match config.driver.as_str() {
+        "geckodriver" => {
+            json!({
+                "moz:firefoxOptions": {
+                    "args":["-headless"]
+                }
+            })
         }
-    });
+        "chromium" => {
+            json!({
+                "goog:chromeOptions": {
+                    "binary": "/usr/bin/chromium",
+                    "args": [
+                        "--headless=new",
+                        "--no-sandbox",
+                        "--disable-dev-shm-usage"
+                    ]
+                }
+            })
+        }
+        _ => {
+            json!({
+                "moz:firefoxOptions": {
+                    "args":["-headless"]
+                }
+            })
+        }
+    };
 
     let client = ClientBuilder::native()
         .capabilities(caps.as_object().unwrap().clone())
         .connect("http://localhost:4444")
         .await?;
 
-    client.goto("https://www.flightaware.com").await?;
+    let mut url = "https://flightaware.com/live/airport/KIND".to_string();
 
-    let search_box = client
-        .find(Locator::Css("[data-testid='search-input']"))
-        .await?;
+    if airport_id.is_none() {
+        println!("No airport_id given, searching for default(KIND)");
+    } else {
+        url = format!("https://flightaware.com/live/airport/{}", airport_id.unwrap());
+    }
 
-    search_box.send_keys("KIND").await?;
-    search_box.send_keys("\u{E007}").await?;
+    println!("URL: {}", url);
 
-    let title = client.title().await?;
-
-    println!("{}", title);
-
-    time::sleep(time::Duration::from_secs(5)).await;
+    client.goto(&url).await?;
 
     let table = client
         .wait()
