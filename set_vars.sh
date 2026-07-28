@@ -1,1 +1,3 @@
+#!/bin/bash
+
 export TELOXIDE_TOKEN="8609986333:AAGp2-GknTLbuaoWA392LGTbIr37jDcKn9U"
