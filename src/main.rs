@@ -24,16 +24,18 @@ struct FltObject {
 #[derive(Deserialize, Clone, Debug)]
 struct Config {
     driver: String,
-    _headless: bool,
-    _webdriver_url: String,
+    #[allow(dead_code)]
+    headless: bool,
+    #[allow(dead_code)]
+    webdriver_url: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             driver: "geckodriver".to_string(),
-            _headless: false,
-            _webdriver_url: "http://localhost:4444".to_string(),
+            headless: false,
+            webdriver_url: "http://localhost:4444".to_string(),
         }
     }
 }
